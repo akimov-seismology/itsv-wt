@@ -1,0 +1,11 @@
+/build/
+/itsv
+/resources
+/third_party/libmseed/*
+!/third_party/libmseed/README.VENDORING.md
+/docs/api/
+*.o
+*.d
+*.so
+*.a
+__pycache__/
