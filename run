@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Start ITSV using the runtime assets from an installed copy of Wt.
+# The public source release does not bundle Wt's web assets or fonts.
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+
+# Wt serves its theme and widget assets at /resources/.  Link the locally
+# installed tree rather than redistributing a copy in ITSV's source package.
+if [[ ! -d resources ]]; then
+  if [[ -e resources || -L resources ]]; then
+    echo "ERROR: resources exists but is not a usable Wt directory." >&2
+    echo "Remove a broken resources symlink, then set WT_RESOURCES_DIR." >&2
+    exit 1
+  fi
+
+  candidate=""
+  prefix="${WT_PREFIX:-/usr/local}"
+  candidates=(
+    "${WT_RESOURCES_DIR:-}"
+    "${prefix}/share/Wt/resources"
+    "${prefix}/share/wt/resources"
+    "/usr/local/share/Wt/resources"
+    "/usr/share/Wt/resources"
+    "/usr/local/share/wt/resources"
+    "/usr/share/wt/resources"
+  )
+  for dir in "${candidates[@]}"; do
+    if [[ -n "$dir" && -f "$dir/themes/default/wt.css" ]]; then
+      candidate="$(cd -- "$dir" && pwd -P)"
+      break
+    fi
+  done
+  if [[ -z "$candidate" ]]; then
+    echo "ERROR: Wt runtime resources not found." >&2
+    echo "Set WT_RESOURCES_DIR=/absolute/path/to/Wt/resources and retry." >&2
+    echo "For example: WT_RESOURCES_DIR=/usr/local/share/Wt/resources ./run" >&2
+    exit 1
+  fi
+  ln -s -- "$candidate" resources
+  echo "Using installed Wt resources: $candidate"
+fi
+
+program="${ITSV_EXECUTABLE:-./itsv}"
+if [[ ! -x "$program" ]]; then
+  echo "ERROR: ITSV executable missing: $program. Run make first." >&2
+  exit 1
+fi
+exec "$program" -c ./wt_config.xml --docroot . \
+  --resources-dir "$(cd resources && pwd -P)" \
+  --http-listen 127.0.0.1:8081 "$@"

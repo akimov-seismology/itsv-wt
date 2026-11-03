@@ -1,0 +1,23 @@
+# Doxygen configuration for the ITSV C++ API.
+PROJECT_NAME           = "ITSV"
+PROJECT_BRIEF          = "Interactive Time Series Viewer - C++/Wt seismic waveform viewer"
+OUTPUT_DIRECTORY       = docs/api
+INPUT                  = src
+FILE_PATTERNS          = *.h *.cpp
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = YES
+FULL_PATH_NAMES        = NO

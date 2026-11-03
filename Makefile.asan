@@ -1,0 +1,64 @@
+# Linux-only AddressSanitizer build for ITSV
+CXX ?= g++
+TARGET := itsv-asan
+BUILD_DIR := build-asan
+WT_PREFIX ?= /usr/local
+WT_INC_DIR := $(WT_PREFIX)/include
+WT_LIB_DIR := $(WT_PREFIX)/lib
+
+LIBMSEED_DIR := third_party/libmseed
+LIBMSEED_FETCH := third_party/fetch-libmseed-2.19.8.sh
+LIBMSEED_A := $(LIBMSEED_DIR)/libmseed.a
+
+SANITIZERS ?= address,undefined
+SAN_FLAGS := -fsanitize=$(SANITIZERS) -fno-omit-frame-pointer
+CPPFLAGS += -Isrc -I$(WT_INC_DIR) -I$(WT_INC_DIR)/Wt -I$(LIBMSEED_DIR)
+CXXFLAGS ?= -O1 -g3 -std=c++17 -Wall -Wextra -Wpedantic -MMD -MP
+CXXFLAGS += $(SAN_FLAGS)
+LDFLAGS += $(SAN_FLAGS) -L$(WT_LIB_DIR) -Wl,-rpath,$(WT_LIB_DIR)
+WT_LIBS ?= -lwt -lwthttp
+COMMON_LIBS ?= -lboost_system -lboost_thread -lboost_filesystem -lboost_program_options -lssl -lcrypto -lz -lpthread -ldl
+LDLIBS := $(LIBMSEED_A) $(WT_LIBS) $(COMMON_LIBS)
+
+SRCS := \
+  src/Recording.cpp \
+  src/ViewState.cpp \
+  src/MiniSeedReader.cpp \
+  src/WaveformDisplay.cpp \
+  src/WaveformPreview.cpp \
+  src/ChannelSelectionDialog.cpp \
+  src/main.cpp
+OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+DEPS := $(OBJS:.o=.d)
+
+.PHONY: all clean run check-wt test
+all: check-wt $(TARGET)
+
+check-wt:
+	@test -f "$(WT_INC_DIR)/Wt/WApplication.h" || ( echo "ERROR: Wt headers not found; set WT_PREFIX"; exit 1 )
+
+$(LIBMSEED_DIR)/libmseed.h: $(LIBMSEED_FETCH)
+	./$(LIBMSEED_FETCH)
+
+$(LIBMSEED_A): $(LIBMSEED_DIR)/libmseed.h
+	$(MAKE) -C $(LIBMSEED_DIR)
+
+$(OBJS): | $(LIBMSEED_DIR)/libmseed.h
+$(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+$(TARGET): $(OBJS) $(LIBMSEED_A)
+	$(CXX) $(OBJS) -o $@ $(LDFLAGS) $(LDLIBS)
+
+run: $(TARGET)
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:abort_on_error=1 \
+	ITSV_EXECUTABLE=./$(TARGET) ./run
+
+test:
+	ITSV_SANITIZE=1 bash tests/run_tests.sh
+
+clean:
+	rm -rf $(BUILD_DIR) $(TARGET)
+
+-include $(DEPS)
